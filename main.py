@@ -3,7 +3,6 @@ import json
 import re
 import pandas as pd
 import random
-import time
 from datetime import datetime
 from playwright.async_api import async_playwright
 
@@ -178,65 +177,25 @@ async def scrape_indeed_rich_data(job_search, location, max_pages=15):
         return all_jobs
 
 if __name__ == "__main__":
-    # List of tech job titles and example locations (20+ pairs)
-    JOB_LOCATION_PAIRS = [
-        ("Product Manager", "Los Angeles, CA"),
-        ("Technical Program Manager", "Chicago, IL"),
-        ("UX Designer", "Boston, MA"),
-        ("UI Designer", "Denver, CO"),
-        ("Data Analyst", "Atlanta, GA"),
-        ("Embedded Systems Engineer", "San Diego, CA"),
-        ("Firmware Engineer", "Phoenix, AZ"),
-        ("Hardware Engineer", "Philadelphia, PA"),
-        ("Network Engineer", "Portland, OR"),
-        ("Systems Architect", "Houston, TX"),
-        ("Platform Engineer", "Raleigh, NC"),
-        ("Game Developer", "San Jose, CA"),
-        ("Graphics Programmer", "Oakland, CA"),
-        ("Computer Vision Engineer", "Palo Alto, CA"),
-        ("Robotics Engineer", "Cambridge, MA"),
-        ("Research Engineer", "Bangalore, India"),
-        ("Blockchain Developer", "London, UK"),
-        ("Smart Contract Engineer", "Berlin, Germany"),
-        ("Quantum Software Engineer", "Zurich, Switzerland"),
-        ("Edge Computing Engineer", "Amsterdam, Netherlands"),
-        ("IoT Engineer", "Tel Aviv, Israel"),
-        ("AR/VR Developer", "Singapore"),
-        ("GIS Developer", "Toronto, Canada"),
-        ("Telemetry Engineer", "Dublin, Ireland"),
-        ("Release Engineer", "Munich, Germany")
-    ]
-
-    all_results = []
-
-    for idx, (title, location) in enumerate(JOB_LOCATION_PAIRS, start=1):
-        print(f"\n=== [{idx}/{len(JOB_LOCATION_PAIRS)}] Scraping: '{title}' @ '{location}' (first page only) ===")
-        try:
-            results = asyncio.run(scrape_indeed_rich_data(title, location, max_pages=1))
-        except Exception as e:
-            print(f"  -> Error running scraper for '{title}' @ '{location}': {e}")
-            results = []
-
-        if results:
-            # Annotate which search produced these rows
-            for r in results:
-                r["Search_Title"] = title
-                r["Search_Location"] = location
-            all_results.extend(results)
-            print(f"  -> Collected {len(results)} jobs for '{title}'.")
-        else:
-            print(f"  -> No jobs collected for '{title}'.")
-
-        # polite pause between queries
-        time.sleep(random.randint(2, 5))
-
-    # Save aggregated results
-    if all_results:
-        df = pd.DataFrame(all_results)
-        print(f"\n✅ Total scraped jobs: {len(df)}")
+    # Settings
+    SEARCH_QUERY = "python developer"
+    LOCATION = "Remote"
+    PAGES_TO_SCRAPE = 38
+    
+    # Run Scraper
+    data = asyncio.run(scrape_indeed_rich_data(SEARCH_QUERY, LOCATION, max_pages=PAGES_TO_SCRAPE))
+    
+    if data:
+        # Create DataFrame
+        df = pd.DataFrame(data)
+        
+        # Display Columns
+        print(f"\n✅ Scraped {len(df)} jobs.")
         print(df[['Title', 'Company', 'Salary_Text', 'Date_Posted', 'Skills_Detected']].head())
-        filename = f"indeed_jobs_bulk_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+        
+        # Save to CSV
+        filename = f"indeed_jobs_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
         df.to_csv(filename, index=False)
-        print(f"Saved combined CSV to {filename}")
+        print(f"Saved detailed data to {filename}")
     else:
-        print("No data extracted for any searches.")
+        print("No data extracted.")
