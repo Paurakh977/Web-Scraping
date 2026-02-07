@@ -10,13 +10,13 @@ async def scrape_indeed_rich_data(job_search, location, max_pages=15):
     all_jobs = []
     
     async with async_playwright() as p:
-        # Launch browser (Headless=False is safer to avoid detection)
+        # Launch browser
         browser = await p.chromium.launch(
             headless=False, 
             args=["--disable-blink-features=AutomationControlled", "--start-maximized"]
         )
         
-        # Setup Context with High-Res Viewport
+        # Create browser context
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
             viewport={"width": 1920, "height": 1080}
@@ -24,10 +24,10 @@ async def scrape_indeed_rich_data(job_search, location, max_pages=15):
         
         page = await context.new_page()
 
-        # Inject Stealth (prevents simple webdriver detection)
+        # Inject stealth script
         await page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
 
-        # Initial Navigation
+        # Initial navigation
         url = f"https://www.indeed.com/jobs?q={job_search}&l={location}"
         print(f"Navigating to: {url}")
         
@@ -40,22 +40,22 @@ async def scrape_indeed_rich_data(job_search, location, max_pages=15):
         for current_page in range(1, max_pages + 1):
             print(f"\n--- Processing Page {current_page} of {max_pages} ---")
             
-            # --- 1. Wait for Jobs to Load ---
+            # Wait for job cards to load
             try:
                 # Wait for the main feed container
                 await page.wait_for_selector('#mosaic-provider-jobcards', timeout=15000)
             except:
-                print("  -> Jobs didn't load. Possible Captcha or Network issue.")
-                # Optional: await page.pause() # Uncomment to manually solve captcha
+                print("  -> Jobs didn't load. Possible captcha or network issue.")
+                # Optional: await page.pause() to manually solve captcha
                 break
 
-            # --- 2. Random Human Pause (Essential) ---
+            # Random delay
             await page.wait_for_timeout(random.randint(2000, 4000))
 
-            # --- 3. Extract RICH JSON ---
+            # Extract JSON data
             content = await page.content()
             
-            # This Regex grabs the specific JS variable containing the JSON data
+            # Regex to find the JS variable containing the JSON data
             pattern = re.compile(r'window.mosaic.providerData\["mosaic-provider-jobcards"\]\s*=\s*({.*?});', re.DOTALL)
             match = pattern.search(content)
             
@@ -95,7 +95,7 @@ async def scrape_indeed_rich_data(job_search, location, max_pages=15):
                             else:
                                 pub_date = "N/A"
 
-                            # --- D. SKILLS / TECH STACK (The Hidden Gem) ---
+                            # Skills / tech stack
                             # As analyzed, skills often appear in 'sortedMisMatchingEntityDisplayText' or 'sortedMatching...'
                             match_model = job.get('jobSeekerMatchSummaryModel', {})
                             
@@ -107,20 +107,20 @@ async def scrape_indeed_rich_data(job_search, location, max_pages=15):
                             skills_list = list(set([s for s in skills_list if s]))
                             skills_str = ", ".join(skills_list)
 
-                            # --- E. JOB ATTRIBUTES ---
+                            # Job attributes
                             job_types = ", ".join(job.get('jobTypes', []))
                             
-                            # Remote Logic: Check the model type OR the simple boolean
+                            # Remote logic
                             remote_model = job.get('remoteWorkModel', {})
                             is_remote = job.get('remoteLocation', False)
                             if remote_model.get('type') == 'REMOTE_ALWAYS':
                                 is_remote = True
 
-                            # --- F. DESCRIPTION SNIPPET ---
+                            # Description snippet
                             snippet_html = job.get('snippet', 'N/A')
                             snippet_clean = re.sub('<[^<]+?>', '', snippet_html).replace("\n", " ").strip()
 
-                            # --- G. COMPANY METRICS ---
+                            # Company metrics
                             
                             all_jobs.append({
                                 "Job_Key": jk,
@@ -149,7 +149,7 @@ async def scrape_indeed_rich_data(job_search, location, max_pages=15):
             else:
                 print("  -> ⚠️ No JSON data block found (Layout might have changed or Captcha triggered).")
 
-            # --- 4. Pagination ---
+            # Pagination
             if current_page < max_pages:
                 try:
                     # Handle "Sign in with Google" popups or other overlays
