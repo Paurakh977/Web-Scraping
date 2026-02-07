@@ -147,7 +147,7 @@ async def scrape_indeed_rich_data(job_search, location, max_pages=15):
                 except json.JSONDecodeError:
                     print("  -> Error decoding JSON data.")
             else:
-                print("  -> ⚠️ No JSON data block found (Layout might have changed or Captcha triggered).")
+                print("  ->  No JSON data block found (Layout might have changed or Captcha triggered).")
 
             # Pagination
             if current_page < max_pages:
@@ -190,7 +190,7 @@ if __name__ == "__main__":
         df = pd.DataFrame(data)
         
         # Display Columns
-        print(f"\n✅ Scraped {len(df)} jobs.")
+        print(f"\n Scraped {len(df)} jobs.")
         print(df[['Title', 'Company', 'Salary_Text', 'Date_Posted', 'Skills_Detected']].head())
         
         # Save to CSV
